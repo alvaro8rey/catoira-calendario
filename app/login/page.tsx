@@ -90,7 +90,7 @@ export default function LoginPage() {
         </p>
 
         <a
-          href="webcal://localhost:3000/api/calendar.ics"
+          href="webcal://catoira-calendario.vercel.app/api/calendar.ics"
           className="bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-md font-medium block mb-4"
         >
           📅 Suscribirse al calendario
