@@ -62,40 +62,41 @@ export default function AdminPage() {
     });
   }
 
-  async function saveEdit() {
-    if (!edit?.id) return;
-    setSavingId(edit.id);
-    setError(null);
+async function saveEdit() {
+  if (!edit?.id) return;
+  setSavingId(edit.id);
+  setError(null);
 
-    try {
-      const body: any = {};
+  try {
+    const body: any = {};
 
-      if (edit.date) {
-        body.date = new Date(edit.date).toISOString();
-      }
-
-      body.venue = edit.venue || null;
-      body.home_score = edit.home_score === '' ? null : Number(edit.home_score);
-      body.away_score = edit.away_score === '' ? null : Number(edit.away_score);
-
-      const res = await fetch(`/api/matches/${edit.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Error guardando');
-
-      await loadMatches();
-
-      setEdit(null);
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setSavingId(null);
+    if (edit.date) {
+      body.date = new Date(edit.date).toISOString();
     }
+
+    body.venue = edit.venue || null;
+    body.home_score = edit.home_score === '' ? null : Number(edit.home_score);
+    body.away_score = edit.away_score === '' ? null : Number(edit.away_score);
+
+    const res = await fetch(`/api/matches/${edit.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Error guardando');
+
+    // 🔄 Recargar desde Supabase (no usar setMatches)
+    await loadMatches();
+
+    setEdit(null); // cerrar ventana
+  } catch (e: any) {
+    setError(e.message);
+  } finally {
+    setSavingId(null);
   }
+}
 
   function cancelEdit() {
     setEdit(null);

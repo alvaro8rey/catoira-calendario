@@ -1,36 +1,40 @@
-import { NextResponse } from 'next/server';
+// app/api/matches/[id]/route.ts
+import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabaseServer';
-import type { Match } from '@/types/match';
 
 export async function PATCH(
-  request: Request,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const id = params.id;
-    const body = await request.json();
+    const body = await req.json();
 
-    const updateData: any = {};
+    console.log("📥 PATCH RECIBIDO – ID:", params.id);
+    console.log("📥 BODY RECIBIDO:", body);
 
-    if (body.date) updateData.date = body.date;
-    updateData.venue = body.venue || null;
-    updateData.home_score =
-      body.home_score === '' ? null : Number(body.home_score);
-    updateData.away_score =
-      body.away_score === '' ? null : Number(body.away_score);
+    // Campos que permitimos editar desde la web
+    const updateFields: any = {};
+    if ('date' in body) updateFields.date = body.date;
+    if ('venue' in body) updateFields.venue = body.venue;
+    if ('home_score' in body) updateFields.home_score = body.home_score;
+    if ('away_score' in body) updateFields.away_score = body.away_score;
 
-    // 👉 ESTA ES LA LÍNEA CORRECTA
+    console.log("📦 DATOS ENVIADOS A SUPABASE:", updateFields);
+
     const { data, error } = await supabaseServer
       .from('matches')
-      .update(updateData as Partial<Match>)  // <- 💯 SOLUCIÓN FINAL
-      .eq('id', id)
-      .select();
+      .update(updateFields as any)   // 🟢 FORZAMOS TIPO PARA NO ROMPER TS
+      .eq('id', params.id)
+      .select()
+      .single();  // 👈 Devuelve SOLO UNA FILA
+
+    console.log("📤 RESPUESTA SUPABASE:", { data, error });
 
     if (error) throw error;
 
-    return NextResponse.json(data?.[0] ?? {});
+    return NextResponse.json(data);
   } catch (error: any) {
-    console.error('[PATCH ERROR SUPABASE]', error);
+    console.error('❌ ERROR PATCH /api/matches/[id]', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
