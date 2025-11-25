@@ -1,7 +1,6 @@
-const config = {
+export default {
   plugins: {
-    "@tailwindcss/postcss": {},
+    "@tailwindcss/postcss": {},  // obligatorio para Tailwind 4
+    autoprefixer: {},           // necesario para Vercel
   },
 };
-
-export default config;
