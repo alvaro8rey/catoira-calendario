@@ -1,54 +1,36 @@
-// app/api/matches/[id]/route.ts
-
 import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabaseServer';
+import type { Match } from '@/types/match';
 
 export async function PATCH(
-  req: Request,
-  context: { params: Promise<{ id: string }> }   // 👈 CAMBIO IMPORTANTE
+  request: Request,
+  { params }: { params: { id: string } }
 ) {
   try {
-    const body = await req.json();
-    const { id } = await context.params;         // 👈 LO ESPERAMOS
+    const id = params.id;
+    const body = await request.json();
 
-    if (!id) {
-      console.error('❌ Sin ID recibido');
-      return NextResponse.json({ error: 'Missing match id' }, { status: 400 });
-    }
+    const updateData: any = {};
 
-    // Evitamos invalid date:
-    let validDate = null;
-    if (body.date) {
-      const dateObj = new Date(body.date);
-      if (!isNaN(dateObj.getTime())) {
-        validDate = dateObj.toISOString().replace('T', ' ').slice(0, 19);
-      }
-    }
+    if (body.date) updateData.date = body.date;
+    updateData.venue = body.venue || null;
+    updateData.home_score =
+      body.home_score === '' ? null : Number(body.home_score);
+    updateData.away_score =
+      body.away_score === '' ? null : Number(body.away_score);
 
-    const updateData: any = {
-      venue: body.venue || null,
-      home_score: body.home_score ?? null,
-      away_score: body.away_score ?? null,
-    };
-
-    if (validDate) {
-      updateData.date = validDate;
-    }
-
+    // 👉 ESTA ES LA LÍNEA CORRECTA
     const { data, error } = await supabaseServer
       .from('matches')
-      .update(updateData)
-      .eq('id', id)    // 👈 AQUI SÍ TENEMOS EL ID REAL
+      .update(updateData as Partial<Match>)  // <- 💯 SOLUCIÓN FINAL
+      .eq('id', id)
       .select();
 
     if (error) throw error;
 
-    return NextResponse.json(data);
+    return NextResponse.json(data?.[0] ?? {});
   } catch (error: any) {
     console.error('[PATCH ERROR SUPABASE]', error);
-    return NextResponse.json(
-      { message: error.message, details: String(error) },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
