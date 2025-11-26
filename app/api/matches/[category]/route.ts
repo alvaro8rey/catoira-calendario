@@ -2,6 +2,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabaseServer";
 
+// --- OPERACIÓN GET (LISTADO) ---
+// Maneja la petición de lista: /api/matches/UUID_CAT
 export async function GET(
   req: NextRequest,
   { params }: { params: { category: string } }
@@ -9,10 +11,12 @@ export async function GET(
   try {
     const { category } = params;
 
+    // Asegúrate de que el usuario está autenticado si es necesario, aunque Next.js se encarga en la página.
+
     const { data, error } = await supabaseServer
       .from("matches")
       .select("*")
-      .eq("category_id", category) // ← FILTRAR POR CATEGORÍA
+      .eq("category_id", category) // Filtra por el ID de categoría de la URL
       .order("jornada", { ascending: true })
       .order("date", { ascending: true });
 
@@ -24,29 +28,31 @@ export async function GET(
   }
 }
 
-// app/api/matches/[category]/route.ts
-
-export async function PATCH(req: NextRequest) {
+// --- OPERACIÓN PATCH (ACTUALIZACIÓN) ---
+// Maneja la petición de edición: /api/matches/UUID_CAT
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: { category: string } } // Mantenemos category, aunque no se usa para el WHERE
+) {
   try {
     const body = await req.json();
-
-    // 🛑 DEBUG: Log completo del cuerpo recibido (¡revisa esto si el error persiste!)
-    console.log("📥 CUERPO DE ENTRADA:", body);
+    const categoryId = params.category;
 
     if (!body.id) {
       return NextResponse.json(
-        { error: "ID del partido faltante" },
+        { error: "ID del partido faltante en el cuerpo de la solicitud." },
         { status: 400 }
       );
     }
 
-    // 🛑 SOLO aceptamos estos campos
+    // 1. Construir los campos a actualizar
     const updateFields: any = {};
+
+    // Mapear campos solo si están presentes en el cuerpo
     if ("date" in body) updateFields.date = body.date || null;
     if ("venue" in body) updateFields.venue = body.venue || null;
     
-    // Convertimos a Number, asegurándonos de que si hay un error de parseo (aunque con Number es improbable),
-    // no se pase un tipo incorrecto.
+    // Convertir puntuaciones a Number o null
     if ("home_score" in body) {
         const score = body.home_score === "" ? null : Number(body.home_score);
         updateFields.home_score = isNaN(score) ? null : score;
@@ -56,19 +62,12 @@ export async function PATCH(req: NextRequest) {
         updateFields.away_score = isNaN(score) ? null : score;
     }
     
-    if ("category_id" in body) updateFields.category_id = body.category_id; // ✔️ opcional
-
-    console.log("📦 ENVIANDO A SUPABASE:", updateFields);
-
-    // 💡 Posible Causa: El error 'column "mode" does not exist' suele ocurrir
-    // cuando una opción de librería o un campoj desconocido se pasa a la base de datos.
-    // La solución es asegurarse de que solo se pasen las columnas correctas.
-    // Como ya lo estás haciendo al crear updateFields, esto debería ser suficiente.
-
+    // 2. Ejecutar la actualización en Supabase
     const { data, error } = await supabaseServer
       .from("matches")
       .update(updateFields)
-      .eq("id", body.id) // 👈 MUY IMPORTANTE
+      .eq("id", body.id) // Buscar el partido por ID (enviado en el BODY)
+      .eq("category_id", categoryId) // Opcional pero recomendado: asegurar que pertenece a la categoría
       .select()
       .single();
 
