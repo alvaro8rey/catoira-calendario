@@ -1,40 +1,64 @@
 // app/api/matches/[id]/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { supabaseServer } from '@/lib/supabaseServer';
+import { NextRequest, NextResponse } from "next/server";
+import { supabaseServer } from "@/lib/supabaseServer";
 
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const body = await req.json();
+async function enviarMensajeTelegram(text: string) {
+try {
+const token = process.env.TELEGRAM_BOT_TOKEN;
+const chatId = process.env.TELEGRAM_CHAT_ID;
 
-    console.log("📥 PATCH RECIBIDO – ID:", params.id);
-    console.log("📥 BODY RECIBIDO:", body);
+if (!token || !chatId) {
+console.warn("⚠️ No hay TOKEN o CHAT_ID en el entorno");
+return;
+}
 
-    // Campos que permitimos editar desde la web
-    const updateFields: any = {};
-    if ('date' in body) updateFields.date = body.date;
-    if ('venue' in body) updateFields.venue = body.venue;
-    if ('home_score' in body) updateFields.home_score = body.home_score;
-    if ('away_score' in body) updateFields.away_score = body.away_score;
+await fetch(
+`https://api.telegram.org/bot${token}/sendMessage`,
+{
+method: "POST",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify({
+chat_id: chatId,
+text,
+}),
+}
+);
+} catch (err) {
+console.error("❌ Error enviando a Telegram:", err);
+}
+}
 
-    console.log("📦 DATOS ENVIADOS A SUPABASE:", updateFields);
+export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+try {
+const body = await req.json();
 
-    const { data, error } = await supabaseServer
-      .from('matches')
-      .update(updateFields as any)   // 🟢 FORZAMOS TIPO PARA NO ROMPER TS
-      .eq('id', params.id)
-      .select()
-      .single();  // 👈 Devuelve SOLO UNA FILA
+const updateFields: any = {};
+if ("date" in body) updateFields.date = body.date;
+if ("venue" in body) updateFields.venue = body.venue;
+if ("home_score" in body) updateFields.home_score = body.home_score;
+if ("away_score" in body) updateFields.away_score = body.away_score;
 
-    console.log("📤 RESPUESTA SUPABASE:", { data, error });
+const { data, error } = await supabaseServer
+.from("matches")
+.update(updateFields)
+.eq("id", params.id)
+.select()
+.single();
 
-    if (error) throw error;
+if (error) throw error;
 
-    return NextResponse.json(data);
-  } catch (error: any) {
-    console.error('❌ ERROR PATCH /api/matches/[id]', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+// 🟢 ENVIAR MENSAJE A TELEGRAM
+const mensaje = `
+📢 *RESULTADO ACTUALIZADO*
+${data.home_team} ${data.home_score ?? "-"} - ${data.away_score ?? "-"} ${data.away_team}
+📅 ${new Date(data.date).toLocaleString("es-ES")}
+🏟️ ${data.venue || "Sin campo definido"}
+`;
+await enviarMensajeTelegram(mensaje);
+
+return NextResponse.json(data);
+} catch (error: any) {
+console.error("Error PATCH /api/matches/[id]", error);
+return NextResponse.json({ error: error.message }, { status: 500 });
+}
 }
