@@ -1,4 +1,4 @@
-// BOT.JS (ejemplo)
+// supabase\functions\bot\main_bot.ts
 bot.command("start", async (ctx) => {
   const categories = await getCategoriesFromSupabase();
 
