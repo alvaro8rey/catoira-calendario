@@ -1,0 +1,34 @@
+// app/api/matches/[category]/[id]/route.ts
+import { NextResponse } from "next/server";
+import { supabaseServer } from "@/lib/supabaseServer";
+
+export async function PATCH(
+  req: Request,
+  { params }: { params: { category: string; id: string } }
+) {
+  try {
+    const { id, category } = params;
+    const body = await req.json();
+
+    const updateFields: any = {
+      date: body.date ? new Date(body.date).toISOString() : null,
+      venue: body.venue || null,
+      home_score: body.home_score ?? null,
+      away_score: body.away_score ?? null,
+      category_id: category,   // 👈 CAMBIO IMPORTANTE
+    };
+
+    const { data, error } = await supabaseServer
+      .from("matches")
+      .update(updateFields)
+      .eq("id", id)
+      .eq("category_id", category)  // 👈 FILTRO CORRECTO
+      .select()
+      .single();
+
+    if (error) throw error;
+    return NextResponse.json(data);
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
