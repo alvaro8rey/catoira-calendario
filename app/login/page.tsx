@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
-import CalendarSelector from "@/components/CalendarSelector";
+import CalendarModal from "@/components/CalendarModal";  // 👈 NUEVO MODAL
 
 export default function LoginPage() {
   const router = useRouter();
@@ -34,6 +34,7 @@ export default function LoginPage() {
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) setError("❌ " + error.message);
     else {
@@ -53,8 +54,8 @@ export default function LoginPage() {
 
   // 🟢 DISEÑO COMPACTO — SIN SCROLL EN MÓVIL
   return (
-    <main className="min-h-screen bg-slate-100 flex justify-center">
-      <div className="bg-white shadow-md rounded-lg p-6 w-full max-w-md text-center mt-6">
+    <main className="min-h-screen bg-slate-100 flex justify-center items-start lg:items-center py-6">
+      <div className="bg-white shadow-lg rounded-lg p-6 w-full max-w-md text-center max-h-[80vh] overflow-y-auto">
 
         {/* 🟥 Título */}
         <h1 className="text-xl font-semibold mb-2 text-red-600">
@@ -73,18 +74,13 @@ export default function LoginPage() {
           📅 Bot de resultados Telegram
         </a>
 
-        {/* 📅 Suscripción calendario */}
-        <a
-          href="webcal://catoira-calendario.vercel.app/api/calendar.ics"
-          className="bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-md font-medium block mb-4"
-        >
-          📅 Suscribirse al calendario
-        </a>
-        <CalendarSelector />
+        {/* 📅 BOTÓN QUE ABRE EL MODAL */}
+        <CalendarModal />   {/* 👈 AHORA AQUÍ EL MODAL */}
+
         {/* 👇 LOGIN */}
         <button
           onClick={() => setShowLogin(!showLogin)}
-          className="text-sm text-slate-700 underline hover:text-slate-900 mb-2"
+          className="text-sm text-slate-700 underline hover:text-slate-900 mt-4 mb-2"
         >
           {showLogin ? "Ocultar login" : "Administrar partidos (solo autorizado)"}
         </button>
@@ -92,7 +88,7 @@ export default function LoginPage() {
         {showLogin && (
           <form onSubmit={handleLogin} className="mt-2 text-left text-sm">
             <div className="mb-3">
-              <label className="block text-xs text-slate-600 mb-1">Correo</label>
+              <label className="block text-s text-slate-600 mb-1">Correo</label>
               <input
                 type="email"
                 value={email}
@@ -101,13 +97,13 @@ export default function LoginPage() {
                   setError("");
                 }}
                 placeholder="ejemplo@gmail.com"
-                className="w-full border border-slate-300 rounded-md p-2"
+                className="w-full border text-slate-600 rounded-md p-2"
                 required
               />
             </div>
 
             <div className="mb-3 relative">
-              <label className="block text-xs text-slate-600 mb-1">Contraseña</label>
+              <label className="block text-s text-slate-600 mb-1">Contraseña</label>
               <input
                 type={showPassword ? "text" : "password"}
                 value={password}
@@ -116,7 +112,7 @@ export default function LoginPage() {
                   setError("");
                 }}
                 placeholder="Contraseña"
-                className="w-full border border-slate-300 rounded-md p-2"
+                className="w-full border text-slate-600 rounded-md p-2"
                 required
               />
               <button
