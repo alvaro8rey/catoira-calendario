@@ -1,9 +1,9 @@
-// \app\login\page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import CalendarSelector from "@/components/CalendarSelector";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -20,13 +20,11 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
 
-  // 🔍 Comprobar sesión
+  // 🔍 Comprobar sesión existente
   useEffect(() => {
     async function checkSession() {
       const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        router.replace("/admin");
-      }
+      if (data.session) router.replace("/admin");
       setLoadingSession(false);
     }
     checkSession();
@@ -35,56 +33,55 @@ export default function LoginPage() {
   // 🚪 LOGIN con Supabase
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
-      setError("❌ " + error.message);
-    } else {
-      if (remember) {
-        localStorage.setItem("remember_admin", "1");
-      }
+    setError("");
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) setError("❌ " + error.message);
+    else {
+      if (remember) localStorage.setItem("remember_admin", "1");
       router.replace("/admin");
     }
   }
 
-  // 🕑 Esperar mientras se comprueba sesión
+  // 🕑 Cargando sesión
   if (loadingSession) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-slate-100">
+      <main className="min-h-screen bg-slate-100 flex items-center justify-center">
         <p className="text-sm text-slate-600">Comprobando sesión...</p>
       </main>
     );
   }
 
-  // 🎨 PÁGINA REAL
+  // 🟢 DISEÑO COMPACTO — SIN SCROLL EN MÓVIL
   return (
-    <main className="min-h-screen flex items-center justify-center bg-slate-100">
-      <div className="bg-white shadow-md rounded-lg p-6 w-full max-w-md text-center">
+    <main className="min-h-screen bg-slate-100 flex justify-center">
+      <div className="bg-white shadow-md rounded-lg p-6 w-full max-w-md text-center mt-6">
 
         {/* 🟥 Título */}
         <h1 className="text-xl font-semibold mb-2 text-red-600">
           Calendario Oficial – Catoira S.D.
         </h1>
 
-        <p className="text-sm text-slate-600 mb-6">
+        <p className="text-sm text-slate-600 mb-4">
           Suscríbete para recibir automáticamente los horarios actualizados.
         </p>
 
-        {/* 📅 BOTÓN CALENDARIO */}
+        {/* 📅 BOT Telegram */}
+        <a
+          href="https://t.me/Catoirabot"
+          className="bg-cyan-500 hover:bg-cyan-700 text-white px-4 py-3 rounded-md font-medium block mb-3"
+        >
+          📅 Bot de resultados Telegram
+        </a>
+
+        {/* 📅 Suscripción calendario */}
         <a
           href="webcal://catoira-calendario.vercel.app/api/calendar.ics"
           className="bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-md font-medium block mb-4"
         >
           📅 Suscribirse al calendario
         </a>
-
-        <hr className="my-4" />
-
-        {/* 👇 MOSTRAR LOGIN */}
+        <CalendarSelector />
+        {/* 👇 LOGIN */}
         <button
           onClick={() => setShowLogin(!showLogin)}
           className="text-sm text-slate-700 underline hover:text-slate-900 mb-2"
@@ -92,10 +89,8 @@ export default function LoginPage() {
           {showLogin ? "Ocultar login" : "Administrar partidos (solo autorizado)"}
         </button>
 
-        {/* 🔐 FORMULARIO LOGIN  */}
         {showLogin && (
-          <form onSubmit={handleLogin} className="mt-4 text-left text-sm">
-            {/* Email */}
+          <form onSubmit={handleLogin} className="mt-2 text-left text-sm">
             <div className="mb-3">
               <label className="block text-xs text-slate-600 mb-1">Correo</label>
               <input
@@ -106,12 +101,11 @@ export default function LoginPage() {
                   setError("");
                 }}
                 placeholder="ejemplo@gmail.com"
+                className="w-full border border-slate-300 rounded-md p-2"
                 required
-                className="w-full border border-slate-300 rounded-md p-2 placeholder-black text-black"
               />
             </div>
 
-            {/* Password con ojo */}
             <div className="mb-3 relative">
               <label className="block text-xs text-slate-600 mb-1">Contraseña</label>
               <input
@@ -121,11 +115,10 @@ export default function LoginPage() {
                   setPassword(e.target.value);
                   setError("");
                 }}
-                placeholder="Introduce tu contraseña"
+                placeholder="Contraseña"
+                className="w-full border border-slate-300 rounded-md p-2"
                 required
-                className="w-full border border-slate-300 rounded-md p-2 placeholder-black text-black"
               />
-
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}

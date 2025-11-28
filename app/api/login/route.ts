@@ -1,18 +1,21 @@
+// app\api\login\route.ts
+
 import { NextResponse } from "next/server";
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { cookies } from "next/headers";
 
 export async function POST(req: Request) {
-  const { password } = await req.json();
+  const supabase = createRouteHandlerClient({ cookies });
+  const { email, password } = await req.json();
 
-  if (password === process.env.ADMIN_PASSWORD) {
-    // 👌 Guardamos sesión con cookie válida 7 días
-    const response = NextResponse.json({ ok: true });
-    response.cookies.set("auth", "true", {
-      httpOnly: true,
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7, // 7 días
-    });
-    return response;
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 401 });
   }
 
-  return NextResponse.json({ error: "Wrong password" }, { status: 401 });
+  return NextResponse.json({ ok: true });
 }
