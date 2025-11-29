@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import CalendarModal from "@/components/CalendarModal";  // 👈 NUEVO MODAL
+import Image from "next/image";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -66,13 +67,17 @@ export default function LoginPage() {
           Suscríbete para recibir automáticamente los horarios actualizados.
         </p>
 
-        {/* 📅 BOT Telegram */}
+        {/* Botón Telegram */}
         <a
-          href="https://t.me/Catoirabot"
-          className="bg-cyan-500 hover:bg-cyan-700 text-white px-4 py-3 rounded-md font-medium block mb-3"
+        target="_blank"
+        rel="noopener noreferrer"
+        href="https://t.me/Catoirabot"
+        className="w-full max-w-sm mx-auto bg-cyan-500 hover:bg-cyan-700 text-white px-4 py-3 rounded-md font-medium flex items-center justify-center gap-2 active:scale-95 transition cursor-pointer mb-4"
         >
-          📅 Bot de resultados Telegram
+        <Image src="/icons/telegram.svg" alt="Telegram" width={20} height={20} />
+        <span>Bot de resultados Telegram</span>
         </a>
+
 
         {/* 📅 BOTÓN QUE ABRE EL MODAL */}
         <CalendarModal />   {/* 👈 AHORA AQUÍ EL MODAL */}

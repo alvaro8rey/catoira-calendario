@@ -2,6 +2,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 
 const categories = [
   { id: "6622245b-5159-4ac4-9a82-ca92d7aa8027", name: "Senior Masculino", emoji: "⚽" },
@@ -27,13 +28,16 @@ export default function CalendarModal() {
 
   return (
     <>
-      {/* BOTÓN QUE ABRE EL MODAL */}
-      <button
+
+        {/* Botón Calendario */}
+        <button
         onClick={() => setOpen(true)}
-        className="bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-md font-medium block mx-auto mt-4"
-      >
-        📅 Suscribirse a un calendario
-      </button>
+        className="w-full max-w-sm mx-auto bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-md font-medium flex items-center justify-center gap-2 active:scale-95 transition cursor-pointer"
+        >
+        <Image src="/icons/calendarplus.svg" alt="Calendario" width={20} height={20} />
+        <span>Suscribirse a un calendario</span>
+        </button>
+
 
       {/* MODAL */}
       {open && (
