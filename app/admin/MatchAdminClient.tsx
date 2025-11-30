@@ -71,12 +71,16 @@ export default function MatchAdminClient() {
   }
 
   async function saveEdit() {
-    if (!edit?.id) return;
-    setSavingId(edit.id);
+  if (!edit?.id) return;
+  setSavingId(edit.id);
 
-    const updateFields: any = {
+  const updateFields: any = {
       id: edit.id,
-      date: edit.date ? new Date(edit.date).toISOString() : null,
+      // ❌ ANTES → restaba horas
+      // date: edit.date ? new Date(edit.date).toISOString() : null,
+      
+      // ✅ AHORA → se guarda EXACTAMENTE como el usuario eligió
+      date: edit.date || null,
       venue: edit.venue || null,
     };
 

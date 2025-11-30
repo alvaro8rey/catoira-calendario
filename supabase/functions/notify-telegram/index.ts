@@ -3,139 +3,129 @@
 import { serve } from "https://deno.land/std@0.219.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.44.2";
 
-// ======================================================
-// 🔐 VARIABLES DE ENTORNO (IMPORTANTE)
-// ======================================================
-const BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
+// =========================
+//  ENV & CLIENT INIT
+// =========================
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+const BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
+const TELEGRAM_GROUP_ID = Deno.env.get("TELEGRAM_GROUP_ID"); // ID del grupo/foro
 
-if (!BOT_TOKEN || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  console.error("❌ ERROR FATAL: Faltan variables de entorno críticas");
-  serve((_req) => new Response("Missing ENV vars", { status: 500 }));
-  throw new Error("Missing ENV vars in notify-telegram");
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !BOT_TOKEN || !TELEGRAM_GROUP_ID) {
+  console.error("❌ Missing env vars");
+  throw new Error("Missing environment variables");
 }
 
-const TELEGRAM_API_URL = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
-const supabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-// ======================================================
-// 📤 FUNCIÓN PARA ENVIAR MENSAJE A TELEGRAM
-// ======================================================
-async function sendTelegramMessage(chatId: string, text: string) {
-  return await fetch(TELEGRAM_API_URL, {
+// =========================
+//  SEND MESSAGE TO TELEGRAM
+// =========================
+async function sendTelegramMessage(msg: string, topicId: number) {
+  const payload = {
+    chat_id: TELEGRAM_GROUP_ID, // GRUPO / FORO
+    message_thread_id: topicId, // TOPIC ID
+    text: msg,
+    parse_mode: "Markdown",
+  };
+
+  const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text,
-      parse_mode: "Markdown",
-    }),
+    body: JSON.stringify(payload),
   });
+
+  if (!res.ok) {
+    console.error("❌ Error enviando Telegram:", await res.text());
+  }
 }
 
-// ======================================================
-// 🧠 GENERADOR INTELIGENTE DE MENSAJE
-// ======================================================
-function generateMessage(newMatch: any, oldMatch: any, categoryName: string) {
-  const scoreWasNullBefore =
-    oldMatch.home_score === null && oldMatch.away_score === null;
-  const scoreIsNullNow =
-    newMatch.home_score === null && newMatch.away_score === null;
+// =========================
+//  FORMATEAR MENSAJE
+// =========================
+function formatearMatchMensaje(newMatch: any, oldMatch: any, categoriaName: string): string {
+  const formatHora = (iso: string) =>
+    new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
 
-  const scoreChanged =
-    (!scoreWasNullBefore && !scoreIsNullNow &&
-      (newMatch.home_score !== oldMatch.home_score ||
-        newMatch.away_score !== oldMatch.away_score)) ||
-    (scoreWasNullBefore && !scoreIsNullNow);
+  let texto = `*📌 ${categoriaName}*\n\n`;
+  texto += `*${newMatch.home_team} vs ${newMatch.away_team}*\n\n`;
 
-  const dateChanged =
-    newMatch.date !== oldMatch.date || newMatch.venue !== oldMatch.venue;
-
-  if (!scoreChanged && !dateChanged) {
-    return null; // No hay cambios importantes → no enviar
+  // 🕒 FECHA / HORARIO
+  if (newMatch.date) {
+    const fechaStr = new Date(newMatch.date).toLocaleDateString("es-ES");
+    const horaStr = formatHora(newMatch.date);
+    if (oldMatch.date !== newMatch.date) {
+      texto += `🕒 *Nuevo horario:* ${fechaStr} a las *${horaStr}*\n`;
+    } else {
+      texto += `🕒 Partido: ${fechaStr} a las *${horaStr}*\n`;
+    }
   }
 
-  let msg = `*📢 ${categoryName}*\n\n`;
-  msg += `*${newMatch.home_team}* vs *${newMatch.away_team}*\n\n`;
-
-  if (scoreChanged) {
-    msg += `🔴 *Resultado Final:* ${newMatch.home_score} - ${newMatch.away_score}\n\n`;
+  // 📍 CAMPO
+  if (newMatch.venue) {
+    if (oldMatch.venue !== newMatch.venue) {
+      texto += `📍 *Nuevo campo:* ${newMatch.venue}\n`;
+    } else {
+      texto += `📍 Campo: ${newMatch.venue}\n`;
+    }
+  } else {
+    texto += `📍 Campo: _Por definir_\n`;
   }
 
-  if (dateChanged) {
-    msg += `🗓️ *Cambio de Horario*\n`;
-    msg += `📅 Nueva fecha: *\n${new Date(newMatch.date).toLocaleString(
-      "es-ES"
-    )}*\n`;
-    msg += `📍 Campo: *${newMatch.venue ?? "Sin campo"}*\n\n`;
+  // ⚽ RESULTADO (solo si se juega el partido)
+  const oldScore = `${oldMatch.home_score ?? ""}-${oldMatch.away_score ?? ""}`;
+  const newScore = `${newMatch.home_score ?? ""}-${newMatch.away_score ?? ""}`;
+
+  if (newMatch.home_score !== null && newMatch.away_score !== null) {
+    if (oldScore !== newScore) {
+      texto += `\n⚽ *Resultado final:* ${newScore}`;
+    }
   }
 
-  msg += `⚽️ ¡Vamos Catoira S.D.!`;
-  return msg;
+  return texto;
 }
 
-// ======================================================
-// 🧠 HANDLER PRINCIPAL
-// ======================================================
+// =========================
+//  SERVIDOR PRINCIPAL
+// =========================
 serve(async (req) => {
   if (req.method !== "POST") {
-    return new Response("Method Not Allowed", { status: 405 });
+    return new Response("Method not allowed", { status: 405 });
   }
 
   try {
-    const body = await req.json();
-    console.log("🟢 JSON recibido:", body);
+    const payload = await req.json();
+    const newMatch = payload?.new;
+    const oldMatch = payload?.old;
 
-    const oldMatch = body.old;
-    const matchId = oldMatch?.id;
-    if (!matchId) return new Response("NO_MATCH_ID", { status: 200 });
+    if (!newMatch || !newMatch.id) {
+      return new Response("No new data", { status: 200 });
+    }
 
-    // Obtener datos NUEVOS de la DB
-    const { data: newMatch } = await supabaseClient
-      .from("matches")
-      .select("*")
-      .eq("id", matchId)
-      .single();
-
-    // Obtener nombre de categoría
-    const { data: categoryData } = await supabaseClient
+    // 📌 Obtener topic_id desde categories
+    const { data: categoryRow, error } = await supabase
       .from("categories")
-      .select("name")
+      .select("telegram_topic_id, name")
       .eq("id", newMatch.category_id)
       .single();
 
-    const categoryName = categoryData?.name ?? "Categoría Desconocida";
-
-    // 📌 Generar mensaje inteligente
-    const message = generateMessage(newMatch, oldMatch, categoryName);
-    if (!message) {
-      console.log("⚠️ No hubo cambios relevantes, no se envía nada.");
-      return new Response("NO_CHANGES", { status: 200 });
+    if (error || !categoryRow?.telegram_topic_id) {
+      console.error("❌ No topic_id found for category:", newMatch.category_id, error);
+      return new Response("No topic_id found", { status: 200 });
     }
 
-    // 📌 Buscar TODOS los que estén suscritos a esta categoría
-    const { data: subscribers } = await supabaseClient
-      .from("subscriptions")
-      .select("telegram_chat_id")
-      .eq("category_id", newMatch.category_id);
+    const threadId = categoryRow.telegram_topic_id;
+    const categoriaName = categoryRow.name;
 
-    if (!subscribers || subscribers.length === 0) {
-      console.log("⚠️ Nadie suscrito. No se envía mensaje.");
-      return new Response("NO_SUBSCRIBERS", { status: 200 });
-    }
+    // 📌 Formatear mensaje
+    const msg = formatearMatchMensaje(newMatch, oldMatch, categoriaName);
 
-    // 📤 Enviar a los suscriptores
-    for (const sub of subscribers) {
-      await sendTelegramMessage(sub.telegram_chat_id, message);
-    }
+    // 📢 Enviar mensaje a su topic correspondiente
+    await sendTelegramMessage(msg, threadId);
 
-    console.log("📨 Notificación enviada correctamente.");
     return new Response("OK", { status: 200 });
   } catch (err) {
-    console.error("❌ ERROR EN notify-telegram:", err);
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-    });
+    console.error("❌ ERROR:", err);
+    return new Response("Internal Error", { status: 500 });
   }
 });
